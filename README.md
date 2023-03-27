@@ -4,7 +4,7 @@
 
 Hello everyone, thank you for being here! :blush:
 
-This is a project concerning the descriptive analysis of sales of real estate in Texas :house_with_garden:. 
+This is a project concerning the exploratory data analysis of real estate market in Texas :house_with_garden:. 
 
 I used the dataset present in the `realestate_texas.csv` file. This consists of 240 observables of 8 variables, which give us information about the sales per month of the real estates of Beaumont, Bryan-College Station, Tyler and Wichita Falls, from 2010 to 2014. Going into detail, the variables are:
 
