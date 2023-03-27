@@ -1,0 +1,575 @@
+---
+title: "Final Project of Descriptive Statistics"
+author: "Mattia Guglielmelli"
+date: "2023-03-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Let's start by importing the packages we will use and the dataset "realestate_texas.csv" on R:
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(moments)
+library(stringr)
+library(cowplot)
+
+my_data <- read.csv("realestate_texas.csv")
+```
+
+In this way, we've created a DataFrame object with 240 observables of 8 variables. Let's see the first 5 lines of the dataset:
+
+```{r}
+head(my_data, 5)
+```
+The variables are:
+
+* `city`: reference city. It is a variable of data type `character`, and therefore a **qualitative nominal variable**;
+* `year`: reference year. Generically speaking, it is a **quantitative interval variable**, since it has not a clear definition of 0. In this case, it will be considered as a categorical variable, with 5 levels;
+* `month`: reference month. It is an **encoded categorical variable**, with 12 levels;
+* `sales`, `listings`: they are **quantitative discrete variables**. Going into detail, the variables contain the following information:
+
+  * `sales`: total number of sales;
+  * `listings`: total number of active listings.
+* `volume`, `median_price`, `months_inventory`: they are **quantitative continuous variables**. Taking a closer look, they give us the following information:
+
+  * `volume`: total value of sales in millions of dollars;
+  * `median_price`: median sale price in dollars; 
+  * `months_inventory`: amount of time required to sell all the active listings at the current sales rate, in months.
+
+As far as the variable `city` is concerned, we create the frequency distribution table. Before doing it, we use the function `attach()` to access variables of the DataFrame without selecting them by index or name from the DataFrame itself:
+
+```{r}
+attach(my_data)
+
+#Construction of the frequency distribution table for the variable `city`:
+
+N = dim(my_data)[1]
+ni = table(city)
+fi = ni/N
+city_freq_distr <- cbind(ni,fi)
+city_freq_distr
+```
+
+From the table, we realize that we are dealing with a **quadrimodal distribution**, since the absolute frequencies are the same for all the categories. Since the observations are uniformly distributed on the 4 categories, we expect the Gini index to be 1. Indeed:
+
+```{r}
+gini.index <- function(x){
+  J <- length(table(x))
+  fi2 <- (table(x)/length(x))^2
+  G <- 1 - sum(fi2)
+  gini <- G / ((J-1)/J)
+  return(gini)
+}
+
+gini.index(city)
+```
+The reason is that the dataset is made of data concerning the sales per month of the real estates of Beaumont, Bryan-College Station, Tyler and Wichita Falls, from 2010 to 2014. Therefore, we have $12\times5=60$ observations for each city. Indeed, if we consider, for example, the observations associated to the city "Beaumont", we find 5 observations for each month and 12 observations for each year:
+
+```{r}
+Beaumont_data = filter(my_data, city == "Beaumont")
+Beaumont_N = dim(Beaumont_data)[1]
+ni = table(Beaumont_data$month)
+fi = ni/Beaumont_N
+Ni = cumsum(ni)
+Fi = Ni/Beaumont_N
+month_freq_distr <- cbind(ni,fi,Ni,Fi)
+month_freq_distr
+
+ni = table(Beaumont_data$year)
+fi = ni/Beaumont_N
+Ni = cumsum(ni)
+Fi = Ni/Beaumont_N
+year_freq_distr <- cbind(ni,fi,Ni,Fi)
+year_freq_distr
+```
+
+The same holds for the remaining 3 cities. Therefore, according to the classic interpretation of probability, if we randomly extract an observation from the dataframe:
+
+- the probability that the city is 'Beaumont' is equal to $60/240$, namely
+
+```{r}
+Beaumont_prob = Beaumont_N/N
+Beaumont_prob
+```
+- the probability that the month is July, i.e. 7, is equal to:
+
+```{r}
+July_data = filter(my_data, month == 7)
+July_N = dim(July_data)[1]
+July_prob = July_N/N
+July_prob
+```
+
+- the probability that the month is December, i.e. 12, and the year is 2012, is given by:
+
+```{r}
+dec2012_data = filter(my_data, month == 12 & year == 2012)
+dec2012_N = dim(dec2012_data)[1]
+dec2012_prob = dec2012_N/N
+dec2012_prob
+```
+
+We now move to compute the measures of position, the measures of variability and the measures of shape of the variables `sales`, `volume`, `median_price`, `listings` and `months_inventory`. To this aim, we build a summary table with all the statistical measures we want to compute:
+
+```{r}
+my_data.colnames <- colnames(my_data)
+columns = c("min", "1st quartile", "median", "3rd quartile", "max", "range", "IQR", "mean", "std.dev", "var.coeff", "skewness", "kurtosis")
+summary.df <- data.frame(matrix(nrow = 0, ncol = length(columns)))
+colnames(summary.df) = columns
+                 
+vc <- function(x){
+  return(sd(x)/mean(x)*100)
+}
+
+for (variable.name in my_data.colnames[4:8]) {
+  
+  variable <- pull(my_data,variable.name)
+  
+  quartiles = as.numeric(quantile(variable))
+  
+  df <- my_data %>%
+    summarise(range=max(variable)-min(variable),
+              IQR=IQR(variable),
+              mean=mean(variable),
+              dev.st=sd(variable),
+              var.coeff=vc(variable),
+              skewness=skewness(variable),
+              kurtosis=kurtosis(variable)-3)
+  
+  row = c(quartiles,as.numeric(df))
+    
+  summary.df <- rbind(summary.df, row)
+
+}
+
+summary.df <- cbind(my_data.colnames[4:8],summary.df)
+colnames(summary.df) = c("variable", columns)
+summary.df
+
+```
+
+The `kurtosis` column allows us to conclude that the variables `sales`, `median_price`, `listings` and `months_inventory` have a negative kurtosis, thus their distributions are **platykurtic**, namely produce less extreme outliers than the normal distribution. On the other hand, the distribution of the variable `volume` is said to be **leptokurtic**, and therefore produces more outliers than the normal distribution. We can see what has been said by looking at the density plots of the variables:
+
+```{r, fig.width=14, fig.height=10}
+layout(mat = matrix(c(1,1,2,2,3,3,
+                      4,5,5,6,6,7),
+                    nrow = 2,
+                    byrow = T))
+
+d1 <- density(sales)
+d2 <- density(volume)
+d3 <- density(median_price)
+d4 <- density(listings)
+d5 <- density(months_inventory)
+plot(d1, main = "Kernel Density of `sales`")
+polygon(d1, col = "lightblue", border = "darkblue")
+plot(d2, main = "Kernel Density of `volume`")
+polygon(d2, col = "lightblue", border = "darkblue")
+plot(d3, main = "Kernel Density of `median_price`")
+polygon(d3, col = "lightblue", border = "darkblue")
+plot.new()
+plot(d4, main = "Kernel Density of `listings`")
+polygon(d4, col = "lightblue", border = "darkblue")
+plot(d5, main = "Kernel Density of `months_inventory`")
+polygon(d5, col = "lightblue", border = "darkblue")
+plot.new()
+```
+
+If we now look at the Fisher-Pearson coefficient of skewness, we learn that, except for the median price, all the variables are positively skewed, namely their distribution is characterized by most of the values clustering around the left tail of the distribution, while the right tail of the distribution is longer. The distribution of the variable `median_price` is instead negatively skewed, meaning that the tail is on the left tail is longer than the right one, and the bulk of the distribution is concentrated on the right tail.
+
+If we now remember that the coefficient of variation (CV) is a statistical measure of the *relative* dispersion of observations in a dataset around the mean, we find that the variable with the highest variability is the total value of sales in millions of dollars, namely the variable `volume`. The latter is also the variable with the highest degree of skewness, as can be seen from the column `skewness` of the table.
+
+Before adding some interesting columns to the dataframe, let us divide the variable `volume` in classes and build the corresponding frequency distribution table. We choose to create 15 classes, in order to synthetize the data, without losing too much information:
+
+```{r, fig.width=10.5, fig.height=7.5}
+volume_classes <- cut(volume,
+                      breaks = seq(min(volume), max(volume),(max(volume)-min(volume))/15))
+
+ni <- table(volume_classes)
+fi <- ni/N
+Ni <- cumsum(ni)
+Fi <- Ni/N
+
+volume_freq_distr <- as.data.frame(cbind(ni,fi,Ni,Fi))
+
+volume_freq_distr
+
+par(mar = c(8,5,4,2) + 0.1)
+
+barplot(volume_freq_distr$ni,
+        xlab = "",
+        ylab = "",
+        ylim = c(0,50),
+        main = "",
+        col = "lightblue",
+        space = 0.1,
+        names.arg = rownames(volume_freq_distr),
+        las = 2)
+
+mtext(side=1, text="`Volume` class (in millions of dollars)", line=6, cex = 1.25)
+mtext(side=2, text="Absolute frequency", line=3, cex = 1.25)
+mtext(side=3, text="Frequency distribution of `volume` classes", line=1.5, cex = 2)
+```
+
+Finally, let us compute the Gini index of the variable `volume` divided in classes:
+
+```{r}
+gini.index(volume_classes)
+```
+
+We now notice that we can compute the average price from the columns `sales` and `volume` of the dataframe, by dividing the total value of sales by the total number of sales. For convenience, let us also convert the average price in dollars:
+
+```{r}
+avg_price = volume/sales*1000000
+my_data_with_avg_price = tibble::add_column(my_data, avg_price, .after = "volume")
+head(my_data_with_avg_price,10)
+```
+
+Based on the available data, we can also add another column that gives an idea of how much the sales offers are effective. Indeed, we can divide the total number of sales by the total number of active sales offers:
+
+```{r}
+sales_offers_efficiency = sales/listings
+my_data_with_avg_and_efficiency = tibble::add_column(my_data_with_avg_price, sales_offers_efficiency, .after = "listings")
+head(my_data_with_avg_and_efficiency,10)
+```
+
+The minimum and the maximum value of the new variable are 0 and 1, respectively, with 0 corresponding to completely ineffective sales offers and 1 to perfectly effective sales offers.
+
+The new variable allows for a more unbiased comparison between the total number of sales of the 4 cities, being divided by total number of active sales offers. Let us then plot it, considering separately the 4 cities:
+
+```{r, fig.width=14, fig.height=10}
+ggplot(data = my_data)+
+  geom_line(aes(x = factor(month.abb[month], levels = month.abb),
+                y=sales_offers_efficiency,
+                group=city,
+                col=city),
+            lwd=1
+            )+
+  facet_wrap(~year, nrow = 1)+
+  scale_x_discrete(guide = guide_axis(angle = 45))+
+  labs(x="Month",
+       y="Sales offers efficiency",
+       title = "Sales offers efficiency per month")+
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom")
+```
+
+We see that in 2010 Wichita Falls was the city which, on average, had the best sales offers efficiency. However, while the sales offers efficiency of Wichita Falls stayed almost constant from 2010 to 2014, the one of Bryan-College Station grew steadily, to become the one with the best sales offers efficiency for every month in 2014.
+
+We can also study how the sales offers efficiency depends on the month, by considering again the 4 cities separately. We can perform this analysis by exploiting the pipe operator:
+
+```{r, fig.width=14, fig.height=10}
+cities = unique(city)
+city.summaries = c()
+par(mfrow=c(2,2))
+
+for (i in cities) {
+  
+  city_data = filter(my_data_with_avg_and_efficiency, city == i)
+
+  city_summary <- city_data %>%
+  group_by(month)%>%
+  summarise(mean = mean(sales_offers_efficiency),
+            std.dev = sd(sales_offers_efficiency))
+  
+  city.summaries <- c(city.summaries, city_summary)
+  
+  plot(x=city_summary$month,
+       y=city_summary$mean,
+       type = "l",
+       xlab = "Month",
+       ylab = "Sales offers efficiency",
+       ylim = c(min(city_summary$mean)-1.5*max(city_summary$std.dev), max(city_summary$mean)+1.5*max(city_summary$std.dev)),
+       main = paste("Sales offers efficiency in", i, sep=" "),
+       xaxt = "n",
+       col = "darkred",
+       cex.main = 1.5)
+  points(x=city_summary$month,
+       y=city_summary$mean,
+       pch = 16,
+       col = "darkred")
+  arrows(x0=city_summary$month, y0=city_summary$mean-city_summary$std.dev, x1=city_summary$month, y1=city_summary$mean+city_summary$std.dev, code=3, angle=90, length=0.1, col="darkred", lwd=2)
+  
+  axis(1, at = seq(1,12,1), labels = month.abb)
+}
+```
+
+Each point of the figure above is given by the mean of the efficiencies associated to a given month, with the corresponding error bars.<br> For all the cities, the months with the lowest sales offers efficiency are January and February. Furthermore, the city that on average has the highest values of efficiency is Bryan-College Station, while the one with the lowest values is Tyler.
+
+Let us now consider the boxplot illustrating the distribution of the median sale price per city: 
+
+```{r, fig.width=14, fig.height=10}
+city_labels <- c()
+
+for (i in 1:length(unique(city))){
+  
+  city_labels<-c(city_labels,paste(stringr::str_split_1(unique(city)[i], " "), collapse = "\n"))
+  
+}
+
+
+
+median_labels <- my_data%>%
+  group_by(as.numeric(factor(city)))%>%
+  summarise(city_name = unique(city), median_median_price = median(median_price))
+
+ggplot()+
+  geom_boxplot(aes(x=median_price,
+                y=city),
+               fill = "lightblue",
+               colour = "darkblue",
+               outlier.colour = "darkblue",
+               outlier.shape = 1,
+               outlier.size = 2.5,
+               linewidth = 0.75,
+               outlier.stroke = 0.75,
+               )+
+  scale_y_discrete(labels=city_labels)+
+  scale_x_continuous(breaks = seq(70000,180000,10000))+
+  labs(x="Median sale price (in dollars)",
+       y="City",
+       title = "Median sale price per city")+
+  theme_bw()+
+  theme(plot.title = element_text(size = 20, hjust = 0.5),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_text(size = 16))+
+  geom_label(aes(x=median_labels$median_median_price,
+             y=median_labels$`as.numeric(factor(city))`,
+             label=median_labels$median_median_price),
+             fill = "lightblue",
+             colour = "darkblue",
+             label.size = 0.75)
+
+```
+
+The boxplot shows that the distribution of the median sale price of all cities is asymmetric. Furthermore, we learn that, on average, the city with the highest median sale price is Bryan-College Station, followed by Tyler, Beaumont and Wichita Falls, respectively.
+
+Let us now build another boxplot with the total value of sales per year, considering again separately the 4 cities:
+
+```{r, fig.width=14, fig.height=10}
+ggplot(data = my_data)+
+  geom_boxplot(aes(x=volume,
+                y=city,
+                fill=factor(year)),
+               outlier.colour = "black",
+               outlier.shape = 1
+            )+
+  scale_fill_manual(
+    name = "Year",
+    breaks = factor(unique(year)),
+    values = c("indianred", "indianred1", "indianred2", "indianred3", "indianred4"),
+    labels = as.character(unique(year))
+  )+
+  scale_y_discrete(labels=city_labels)+
+  scale_x_continuous(breaks = seq(10,80,10))+
+  labs(x="Total value of sales (in millions of dollars)",
+       y="City",
+       title = "Total value of sales per year")+
+  theme_bw()+
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title.align = 0.5)
+  
+```
+
+This chart allows us to see that, regardless of the year, the city with the highest median of the total value of sales is Tyler, followed by Bryan-College Station . Combined with the previous graph, we expect the total number of sales to be greater (on average) in Tyler than in Bryan-College Station, since the latter tends to have a higher median sale price than the former.<br> We can extrapolate some other useful information from the plot. For example, it shows that the total value of sales per year:
+
+- steadily increased in Tyler, Bryan-College Station and Beaumont;
+- remained almost constant in Wichita Falls.
+
+Let us look again at the total value of sales, by now showing the data not only per year, but per month, by means of a stacked bar chart:  
+
+
+```{r, fig.width=14, fig.height=10}
+ggplot(my_data)+
+  geom_col(aes(x = factor(month.abb[month], levels = month.abb),
+               y = volume,
+               fill = city))+
+  labs(x = "Month",
+       y = "Total value of sales in millions of dollars",
+       title = "Total value of sales per month")+
+  facet_wrap(~year,nrow = 1)+
+  scale_x_discrete(guide = guide_axis(angle = 45))+
+  scale_fill_discrete(name = "City", labels = str_wrap(unique(city), width = 15))+
+  theme_minimal()+
+  theme(plot.title = element_text(size= 20, hjust = 0.5),
+        strip.text = element_text(size = 12, face = "bold"),
+        strip.background = element_rect(color = "black", fill = "lightblue", linewidth = 1.2),
+        legend.box.background = element_rect(color = "black", linewidth = 0.3),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_text(size = 16),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        legend.title.align = 0.5,
+        panel.spacing = unit(1.5, "lines"))
+```
+
+This chart illustrates that the months going from April to August are those reaching the highest sum of the total value of sales. Furthermore, it shows that there was an increase of the total value of sales in Texas from 2011 onwards, mostly due to the significant increase of the total value of sales in Bryan-College Station. This is even clearer by looking at the normalized stacked bar chart:
+
+```{r, fig.width=14, fig.height=10}
+ggplot(data = my_data)+
+  geom_col(aes(x = factor(month.abb[month], levels = month.abb),
+               y = volume,
+               fill = city),
+           position = "fill")+
+  labs(x = "Month",
+       y = "Fraction of the total value of sales",
+       title = "Total value of sales per month")+
+  facet_wrap(~year,nrow = 1)+
+  scale_x_discrete(guide = guide_axis(angle = 45))+
+  scale_fill_discrete(name = "City", labels = str_wrap(unique(city), width = 15))+
+  theme_minimal()+
+  theme(plot.title = element_text(size= 20, hjust = 0.5),
+        strip.text = element_text(size = 12, face = "bold"),
+        strip.background = element_rect(color = "black", fill = "lightblue", linewidth = 1.2),
+        legend.box.background = element_rect(color = "black", linewidth = 0.3),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_text(size = 16),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        legend.title.align = 0.5,
+        panel.spacing = unit(1.5, "lines"))
+```
+
+In addition, the following line chart contains the percentage of the total value of sales of each city per year:
+
+```{r, fig.width=14, fig.height=10}
+total_per_year <- my_data %>%
+  group_by(year)%>%
+  summarise(total=sum(volume))
+
+i = 1
+years = unique(year)
+
+for (yr in years) {
+  
+  percentage_per_city <- filter(my_data, year == yr) %>%
+  group_by(city)%>%
+  summarise(year = unique(year),
+            percentage = sum(volume)/total_per_year$total[i])
+  
+  if (i==1) {
+    
+    percentage_per_year_and_city <- percentage_per_city
+    
+  } else {
+    percentage_per_year_and_city <- rbind(percentage_per_year_and_city, percentage_per_city)
+  }
+  
+  i <- i+1
+  
+}
+
+swtch <- function(x,i,j) {
+  x[c(i,j)] <- x[c(j,i)]
+  return(x)
+}
+
+#percentage_per_year_and_city
+
+ggplot(percentage_per_year_and_city)+
+  geom_line(aes(x=year,
+                y=percentage*100,
+                group=city,
+                col=city),
+            lwd=1
+            )+
+  geom_point(aes(x=year,
+                y=percentage*100,
+                group=city,
+                col=city),
+            size=2.5)+
+  labs(x = "Year",
+       y = "Percentage of the total value of sales",
+       title = "Percentage of the total value of sales per year")+
+  geom_text(aes(x=year,
+                y=percentage*100-1,
+                label=paste(format(round(percentage*100, 2), nsmall = 2),"%")))+
+  scale_color_discrete(name = "City",
+                       labels = swtch(str_wrap(unique(city), width = 15), 1, 3),
+                       breaks = swtch(unique(city), 1, 3))+
+  scale_y_continuous(breaks = seq(5,40,5))+
+  theme(plot.title = element_text(size= 20, hjust = 0.5),
+        legend.box.background = element_rect(color = "black", linewidth = 0.75),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_text(size = 16),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        legend.title.align = 0.5,
+        panel.spacing = unit(1.5, "lines"))
+
+```
+
+From the last two graphs, we see that the percentage of the total value of sales per year:
+
+- steadily increased for Bryan-College Station;
+- slightly decreased for Beaumont;
+- costantly declined for Wichita Falls;
+- stayed almost constant for Tyler.
+
+
+The overall increase in the total value of sales from 2011 onwards is mostly due to an increase in the number of sales rather than to an increase of the median sale price. To see this, let us show the time series associated to the two variables `sales` and `median_price`:
+
+```{r, fig.width=14, fig.height=10}
+
+p1 <- ggplot(data = my_data)+
+  geom_line(aes(x = factor(month.abb[month], levels = month.abb),
+                y=median_price,
+                group=city,
+                col=city),
+            lwd=1
+            )+
+  facet_wrap(~year, nrow = 1)+
+  scale_x_discrete(guide = guide_axis(angle = 45))+
+  scale_color_discrete(name = "City")+
+  labs(x="Month",
+       y="Median sale price in dollars",
+       title = "Median sale price per month")+
+  theme(plot.title = element_text(hjust = 0.5, size = 14),
+        legend.position = "bottom",
+        strip.text = element_text(size = 12, face = "bold"),
+        strip.background = element_rect(color = "black", fill = "lightblue", linewidth = 1.2),
+        legend.box.background = element_rect(color = "black", linewidth = 1),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        legend.title.align = 0.5)
+
+p2 <- ggplot(data = my_data)+
+  geom_line(aes(x = factor(month.abb[month], levels = month.abb),
+                y=sales,
+                group=city,
+                col=city),
+            lwd=1
+            )+
+  facet_wrap(~year, nrow = 1)+
+  scale_x_discrete(guide = guide_axis(angle = 45))+
+  labs(x="Month",
+       y="Total number of sales",
+       title = "Total number of sales per month")+
+  theme(plot.title = element_text(hjust = 0.5, size = 14),
+        legend.position = "none",
+        strip.text = element_text(size = 12, face = "bold"),
+        strip.background = element_rect(color = "black", fill = "lightblue", linewidth = 1.2),
+        legend.box.background = element_rect(color = "black", linewidth = 1),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        legend.title.align = 0.5)
+
+plot_grid(p1, p2, ncol = 1, align = "v", rel_heights = c(1.125,1))
+```
+
+From the two charts, we see that there was a significative increase in the number of sales in Bryan-College Station and Tyler in 2013 and 2014, and a slight increase in Beaumont from 2011 onwards. The same is not true for the median price. Indeed, it stayed almost constant in Beaumont and Wichita Falls, while there was only a slight increase in the cities of Bryan-College Station and Tyler.
