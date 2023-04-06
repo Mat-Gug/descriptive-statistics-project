@@ -121,7 +121,8 @@ We now move to compute the measures of position, the measures of variability and
 
 ```{r}
 my_data.colnames <- colnames(my_data)
-columns = c("min", "1st quartile", "median", "3rd quartile", "max", "range", "IQR", "mean", "std.dev", "var.coeff", "skewness", "kurtosis")
+columns = c("min", "1st quartile", "median", "3rd quartile", "max", "range",
+            "IQR", "mean", "std.dev", "var.coeff", "skewness", "kurtosis")
 summary.df <- data.frame(matrix(nrow = 0, ncol = length(columns)))
 colnames(summary.df) = columns
                  
@@ -191,7 +192,8 @@ Before adding some interesting columns to the dataframe, let us divide the varia
 
 ```{r, fig.width=10.5, fig.height=7.5}
 volume_classes <- cut(volume,
-                      breaks = seq(min(volume), max(volume),(max(volume)-min(volume))/15))
+                      breaks = seq(min(volume), max(volume),
+                                   (max(volume)-min(volume))/15))
 
 ni <- table(volume_classes)
 fi <- ni/N
@@ -214,9 +216,18 @@ barplot(volume_freq_distr$ni,
         names.arg = rownames(volume_freq_distr),
         las = 2)
 
-mtext(side=1, text="`Volume` class (in millions of dollars)", line=6, cex = 1.25)
-mtext(side=2, text="Absolute frequency", line=3, cex = 1.25)
-mtext(side=3, text="Frequency distribution of `volume` classes", line=1.5, cex = 2)
+mtext(side=1, 
+      text="`Volume` class (in millions of dollars)",
+      line=6,
+      cex = 1.25)
+mtext(side=2,
+      text="Absolute frequency",
+      line=3,
+      cex = 1.25)
+mtext(side=3,
+      text="Frequency distribution of `volume` classes",
+      line=1.5,
+      cex = 2)
 ```
 
 Finally, let us compute the Gini index of the variable `volume` divided in classes:
@@ -229,7 +240,9 @@ We now notice that we can compute the average price from the columns `sales` and
 
 ```{r}
 avg_price = volume/sales*1000000
-my_data_with_avg_price = tibble::add_column(my_data, avg_price, .after = "volume")
+my_data_with_avg_price = tibble::add_column(my_data,
+                                            avg_price,
+                                            .after = "volume")
 head(my_data_with_avg_price,10)
 ```
 
@@ -237,7 +250,9 @@ Based on the available data, we can also add another column that gives an idea o
 
 ```{r}
 sales_offers_efficiency = sales/listings
-my_data_with_avg_and_efficiency = tibble::add_column(my_data_with_avg_price, sales_offers_efficiency, .after = "listings")
+my_data_with_avg_and_efficiency = tibble::add_column(my_data_with_avg_price,
+                                                     sales_offers_efficiency,
+                                                     .after = "listings")
 head(my_data_with_avg_and_efficiency,10)
 ```
 
@@ -287,7 +302,8 @@ for (i in cities) {
        type = "l",
        xlab = "Month",
        ylab = "Sales offers efficiency",
-       ylim = c(min(city_summary$mean)-1.5*max(city_summary$std.dev), max(city_summary$mean)+1.5*max(city_summary$std.dev)),
+       ylim = c(min(city_summary$mean)-1.5*max(city_summary$std.dev),
+                max(city_summary$mean)+1.5*max(city_summary$std.dev)),
        main = paste("Sales offers efficiency in", i, sep=" "),
        xaxt = "n",
        col = "darkred",
@@ -296,7 +312,15 @@ for (i in cities) {
        y=city_summary$mean,
        pch = 16,
        col = "darkred")
-  arrows(x0=city_summary$month, y0=city_summary$mean-city_summary$std.dev, x1=city_summary$month, y1=city_summary$mean+city_summary$std.dev, code=3, angle=90, length=0.1, col="darkred", lwd=2)
+  arrows(x0=city_summary$month,
+         y0=city_summary$mean-city_summary$std.dev,
+         x1=city_summary$month,
+         y1=city_summary$mean+city_summary$std.dev,
+         code=3,
+         angle=90,
+         length=0.1,
+         col="darkred",
+         lwd=2)
   
   axis(1, at = seq(1,12,1), labels = month.abb)
 }
@@ -311,7 +335,9 @@ city_labels <- c()
 
 for (i in 1:length(unique(city))){
   
-  city_labels<-c(city_labels,paste(stringr::str_split_1(unique(city)[i], " "), collapse = "\n"))
+  city_labels<-c(city_labels,
+                 paste(stringr::str_split_1(unique(city)[i], " "),
+                       collapse = "\n"))
   
 }
 
@@ -319,7 +345,8 @@ for (i in 1:length(unique(city))){
 
 median_labels <- my_data%>%
   group_by(as.numeric(factor(city)))%>%
-  summarise(city_name = unique(city), median_median_price = median(median_price))
+  summarise(city_name = unique(city),
+            median_median_price = median(median_price))
 
 ggplot()+
   geom_boxplot(aes(x=median_price,
@@ -366,7 +393,8 @@ ggplot(data = my_data)+
   scale_fill_manual(
     name = "Year",
     breaks = factor(unique(year)),
-    values = c("indianred", "indianred1", "indianred2", "indianred3", "indianred4"),
+    values = c("indianred", "indianred1", "indianred2",
+               "indianred3", "indianred4"),
     labels = as.character(unique(year))
   )+
   scale_y_discrete(labels=city_labels)+
@@ -398,12 +426,18 @@ ggplot(my_data)+
        title = "Total value of sales per month")+
   facet_wrap(~year,nrow = 1)+
   scale_x_discrete(guide = guide_axis(angle = 45))+
-  scale_fill_discrete(name = "City", labels = str_wrap(unique(city), width = 15))+
+  scale_fill_discrete(name = "City",
+                      labels = str_wrap(unique(city), width = 15))+
   theme_minimal()+
-  theme(plot.title = element_text(size= 20, hjust = 0.5),
-        strip.text = element_text(size = 12, face = "bold"),
-        strip.background = element_rect(color = "black", fill = "lightblue", linewidth = 1.2),
-        legend.box.background = element_rect(color = "black", linewidth = 0.3),
+  theme(plot.title = element_text(size= 20,
+                                  hjust = 0.5),
+        strip.text = element_text(size = 12,
+                                  face = "bold"),
+        strip.background = element_rect(color = "black",
+                                        fill = "lightblue",
+                                        linewidth = 1.2),
+        legend.box.background = element_rect(color = "black",
+                                             linewidth = 0.3),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
         axis.title = element_text(size = 16),
@@ -426,12 +460,18 @@ ggplot(data = my_data)+
        title = "Total value of sales per month")+
   facet_wrap(~year,nrow = 1)+
   scale_x_discrete(guide = guide_axis(angle = 45))+
-  scale_fill_discrete(name = "City", labels = str_wrap(unique(city), width = 15))+
+  scale_fill_discrete(name = "City",
+                      labels = str_wrap(unique(city), width = 15))+
   theme_minimal()+
-  theme(plot.title = element_text(size= 20, hjust = 0.5),
-        strip.text = element_text(size = 12, face = "bold"),
-        strip.background = element_rect(color = "black", fill = "lightblue", linewidth = 1.2),
-        legend.box.background = element_rect(color = "black", linewidth = 0.3),
+  theme(plot.title = element_text(size= 20,
+                                  hjust = 0.5),
+        strip.text = element_text(size = 12,
+                                  face = "bold"),
+        strip.background = element_rect(color = "black",
+                                        fill = "lightblue",
+                                        linewidth = 1.2),
+        legend.box.background = element_rect(color = "black",
+                                             linewidth = 0.3),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
         axis.title = element_text(size = 16),
@@ -463,7 +503,8 @@ for (yr in years) {
     percentage_per_year_and_city <- percentage_per_city
     
   } else {
-    percentage_per_year_and_city <- rbind(percentage_per_year_and_city, percentage_per_city)
+    percentage_per_year_and_city <- rbind(percentage_per_year_and_city,
+                                          percentage_per_city)
   }
   
   i <- i+1
@@ -499,8 +540,10 @@ ggplot(percentage_per_year_and_city)+
                        labels = swtch(str_wrap(unique(city), width = 15), 1, 3),
                        breaks = swtch(unique(city), 1, 3))+
   scale_y_continuous(breaks = seq(5,40,5))+
-  theme(plot.title = element_text(size= 20, hjust = 0.5),
-        legend.box.background = element_rect(color = "black", linewidth = 0.75),
+  theme(plot.title = element_text(size= 20,
+                                  hjust = 0.5),
+        legend.box.background = element_rect(color = "black",
+                                             linewidth = 0.75),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
         axis.title = element_text(size = 16),
@@ -536,10 +579,14 @@ p1 <- ggplot(data = my_data)+
   labs(x="Month",
        y="Median sale price in dollars",
        title = "Median sale price per month")+
-  theme(plot.title = element_text(hjust = 0.5, size = 14),
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 14),
         legend.position = "bottom",
-        strip.text = element_text(size = 12, face = "bold"),
-        strip.background = element_rect(color = "black", fill = "lightblue", linewidth = 1.2),
+        strip.text = element_text(size = 12,
+                                  face = "bold"),
+        strip.background = element_rect(color = "black",
+                                        fill = "lightblue",
+                                        linewidth = 1.2),
         legend.box.background = element_rect(color = "black", linewidth = 1),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
@@ -560,11 +607,16 @@ p2 <- ggplot(data = my_data)+
   labs(x="Month",
        y="Total number of sales",
        title = "Total number of sales per month")+
-  theme(plot.title = element_text(hjust = 0.5, size = 14),
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 14),
         legend.position = "none",
-        strip.text = element_text(size = 12, face = "bold"),
-        strip.background = element_rect(color = "black", fill = "lightblue", linewidth = 1.2),
-        legend.box.background = element_rect(color = "black", linewidth = 1),
+        strip.text = element_text(size = 12,
+                                  face = "bold"),
+        strip.background = element_rect(color = "black",
+                                        fill = "lightblue",
+                                        linewidth = 1.2),
+        legend.box.background = element_rect(color = "black",
+                                             linewidth = 1),
         axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
         axis.title = element_text(size = 12),
