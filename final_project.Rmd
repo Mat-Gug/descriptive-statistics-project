@@ -1,12 +1,12 @@
 ---
-title: "Final Project of Descriptive Statistics"
+title: "Exploratory Data Analysis of real estate market in Texas"
 author: "Mattia Guglielmelli"
 date: "2023-03-18"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 Let's start by importing the packages we will use and the dataset "realestate_texas.csv" on R:
