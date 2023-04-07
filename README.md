@@ -18,3 +18,5 @@ I used the dataset present in the `realestate_texas.csv` file. This consists of 
 * `months_inventory`: amount of time required to sell all the active listings at the current sales rate, in months.
 
 I described the features of the data set, by generating, according to the variable under consideration, frequency distribution tables or summaries containing the measures of position, the measures of variability and the measures of shape. Furthermore, to better visualize trends and patterns in data, I graphically represented them, mainly using the `ggplot2` package.
+
+You can see the HTML output of the R Markdown document by clicking on the link in the "About" section! :link:
